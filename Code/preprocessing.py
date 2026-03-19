@@ -20,17 +20,17 @@ Usage:
 # Cell 1: Imports & Setup
 # ============================================================
 
-import os
-import glob
-import json
-import pickle
-import time
-from dataclasses import dataclass, asdict
+import os                                               # Used for path manipulation and file operations
+import glob                                             # Used to find all CSV files in the directory
+import json                                             # Used for serializing the configuration
+import pickle                                           # Used for serializing the scaler
+import time                                             # Used for timing the execution
+from dataclasses import dataclass, asdict               # Used for creating the configuration class
 
-import numpy as np
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
+import numpy as np                                      # Used for numerical operations
+import pandas as pd                                     # Used for data manipulation and analysis
+from sklearn.model_selection import train_test_split    # Used for splitting the data into training and testing sets
+from sklearn.preprocessing import MinMaxScaler          # Used for scaling the data
 
 
 def set_seed(seed=42):
@@ -41,9 +41,6 @@ def set_seed(seed=42):
         seed (int): The seed value to use for all random number generators.
     """
     np.random.seed(seed)
-
-
-
 
 
 # ============================================================
@@ -68,15 +65,12 @@ class PreprocessConfig:
     variance_threshold:     float = 0.01             # Drop features with variance below this
     correlation_threshold:  float = 0.95             # Drop one of each pair above this
 
-
 cfg = PreprocessConfig()
 
 # --- Paths ---
 DATA_ROOT = r"C:\Users\User1\Desktop\datasets\CICIDS2017\MachineLearningCSV\MachineLearningCVE"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "processed_data")
-
-
 
 
 # ============================================================
@@ -267,51 +261,54 @@ def filter_high_correlation(X, feature_names, threshold):
     return X[:, mask], [n for n, k in zip(feature_names, mask) if k], dropped
 
 
-def filter_features(df, cfg):
+def filter_features(X_train, X_val, X_test, cfg):
     """
     Apply low-variance and high-correlation filtering to the feature matrix.
+    Calculations are strictly fitted on the training data to prevent data leakage.
 
     Parameters:
-        df (pd.DataFrame): DataFrame with numeric features and a 'Label' column.
+        X_train (pd.DataFrame): Training features.
+        X_val (pd.DataFrame): Validation features.
+        X_test (pd.DataFrame): Test features.
         cfg (PreprocessConfig): Configuration with thresholds.
 
     Returns:
-        tuple: (filtered DataFrame with 'Label', remaining feature names,
+        tuple: (Filtered X_train, X_val, X_test, remaining feature names,
                 dict of all dropped features by reason)
     """
     print(f"\n{'='*60}")
-    print("Filtering features...")
+    print("Filtering features (fit on train only)...")
     print(f"{'='*60}")
 
-    feature_cols = [col for col in df.columns if col != "Label"]
-    X = df[feature_cols].values.astype(np.float64)
-    y = df["Label"].values
+    feature_cols = list(X_train.columns)
+    X_train_arr = X_train.values.astype(np.float64)
     initial_count = len(feature_cols)
 
     print(f"  Starting with {initial_count} features")
 
-    # Low-variance filter
-    X, feature_cols, dropped_variance = filter_low_variance(
-        X, feature_cols, cfg.variance_threshold
+    # Low-variance filter (fit on train)
+    X_train_arr, feature_cols, dropped_variance = filter_low_variance(
+        X_train_arr, feature_cols, cfg.variance_threshold
     )
 
-    # High-correlation filter
-    X, feature_cols, dropped_corr = filter_high_correlation(
-        X, feature_cols, cfg.correlation_threshold
+    # High-correlation filter (fit on train)
+    X_train_arr, feature_cols, dropped_corr = filter_high_correlation(
+        X_train_arr, feature_cols, cfg.correlation_threshold
     )
 
     print(f"\n  Features remaining: {len(feature_cols)} (removed {initial_count - len(feature_cols)})")
 
-    # Reconstruct DataFrame
-    result_df = pd.DataFrame(X, columns=feature_cols)
-    result_df["Label"] = y
+    # Reconstruct DataFrames using only the kept features
+    X_train_res = pd.DataFrame(X_train_arr, columns=feature_cols, index=X_train.index)
+    X_val_res = X_val[feature_cols].copy()
+    X_test_res = X_test[feature_cols].copy()
 
     dropped_features = {
         "low_variance": dropped_variance,
         "high_correlation": dropped_corr
     }
 
-    return result_df, feature_cols, dropped_features
+    return X_train_res, X_val_res, X_test_res, feature_cols, dropped_features
 
 
 # ============================================================
@@ -650,8 +647,8 @@ def run_pipeline():
         1. Load & concatenate CSVs
         2. Clean (NaN/Inf, duplicates)
         3. Binary label encoding
-        4. Feature filtering (low-variance, high-correlation)
-        5. Stratified train/val/test split (70/15/15)
+        4. Stratified train/val/test split (70/15/15)
+        5. Feature filtering (fit on train only)
         6. Min-Max normalisation (fit on train only)
         7. Compute class weights (inverse frequency)
         8. Save all processed data
@@ -680,11 +677,11 @@ def run_pipeline():
     # Step 3: Labels
     df = encode_labels(df)
 
-    # Step 4: Feature filtering
-    df, feature_names, dropped_features = filter_features(df, cfg)
-
-    # Step 5: Split
+    # Step 4: Split (before filtering to prevent leakage)
     X_train, X_val, X_test, y_train, y_val, y_test = stratified_split(df, cfg)
+
+    # Step 5: Feature filtering (fit on train only)
+    X_train, X_val, X_test, feature_names, dropped_features = filter_features(X_train, X_val, X_test, cfg)
 
     # Step 6: Normalise
     X_train, X_val, X_test, scaler = normalise_features(X_train, X_val, X_test)

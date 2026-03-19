@@ -1,14 +1,14 @@
 """
-Base Model Module — RF / XGBoost / MLP
+Base Model Module — RF & XGBoost
 =======================================
 Provides a model-agnostic interface for creating, training, and scoring
-IDS classifiers. Supports switching between Random Forest, XGBoost, and MLP
+IDS classifiers. Supports switching between Random Forest and XGBoost
 via a configurable model_type parameter.
 
 Design:
   - Factory pattern: create_model() returns the correct sklearn-compatible estimator
   - train_and_predict(): single train/predict cycle returning raw outputs
-  - fitness_function(): 5-fold stratified CV with SMOTE for metaheuristic evaluation
+  - fitness_function(): 5-fold stratified CV for metaheuristic evaluation
   - Metrics computation and evaluation display deferred to evaluation.py
 
 Usage:
@@ -19,19 +19,17 @@ Usage:
 # Cell 1: Imports & Seed
 # ============================================================
 
-import os
-import sys
-import time
-import numpy as np
-import pandas as pd
-from dataclasses import dataclass
+import os                                               # Used for path manipulation and file operations
+import sys                                              # Used for system-specific parameters and functions
+import time                                             # Used for timing the execution
+import numpy as np                                      # Used for numerical operations
+import pandas as pd                                     # Used for data manipulation and analysis
+from dataclasses import dataclass                       # Used for creating the configuration class
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier     # Used for Random Forest classification
+from sklearn.model_selection import StratifiedKFold     # Used for stratified cross-validation
 from sklearn.metrics import f1_score                    # Only metric needed internally (fitness function)
-from xgboost import XGBClassifier
-from imblearn.over_sampling import SMOTE                # Class imbalance handling
+from xgboost import XGBClassifier                       # Used for XGBoost classification
 
 # Import shared utilities from preprocessing
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -50,7 +48,7 @@ class ModelConfig:
     Base model configuration with model type switch.
 
     Attributes:
-        model_type (str): Which model to use — "rf", "xgboost", or "mlp".
+        model_type (str): Which model to use — "rf" or "xgboost".
         seed (int): Random seed for reproducibility.
         cv_folds (int): Number of folds for cross-validation in fitness function.
     """
@@ -78,17 +76,6 @@ DEFAULT_HYPERPARAMS = {
         "reg_alpha"             : 0.0,
         "reg_lambda"            : 1.0,
     },
-    "mlp": {
-        "hidden_layer_sizes"    : (100,),
-        "learning_rate_init"    : 0.001,
-        "alpha"                 : 0.0001,     # L2 regularisation
-        "batch_size"            : 200,
-        "activation"            : "relu",
-        "max_iter"              : 200,        # Max epochs
-        "early_stopping"        : True,       # Prevent overfitting during metaheuristic eval
-        "validation_fraction"   : 0.1,
-        "n_iter_no_change"      : 10,
-    },
 }
 
 # Hyperparameter search space bounds for each model (used by metaheuristics)
@@ -110,19 +97,12 @@ HYPERPARAM_BOUNDS = {
         "reg_alpha"             : (0.0, 10.0),
         "reg_lambda"            : (0.0, 10.0),
     },
-    "mlp": {
-        "hidden_layer_sizes"    : (32, 256),      # Single layer size (will be cast to tuple)
-        "learning_rate_init"    : (0.0001, 0.01),
-        "alpha"                 : (0.00001, 0.01),
-        "batch_size"            : (64, 512),
-    },
 }
 
 # Human-readable model names
 MODEL_NAMES = {
     "rf"        : "Random Forest",
     "xgboost"   : "XGBoost",
-    "mlp"       : "MLP",
 }
 
 
@@ -153,26 +133,6 @@ def _apply_feature_mask(X, feature_mask):
         return X_arr, X_arr.shape[1]
 
 
-def _apply_smote(X, y, seed=42):
-    """
-    Apply SMOTE oversampling to balance class distribution.
-
-    CRITICAL: This must ONLY be applied to training data, NEVER to
-    validation or test data. Applying SMOTE to val/test would cause
-    data leakage and artificially inflate performance metrics.
-
-    Parameters:
-        X (np.ndarray): Feature matrix (training data only).
-        y (np.ndarray): Labels (training data only).
-        seed (int): Random seed for reproducibility.
-
-    Returns:
-        tuple: (X_resampled, y_resampled) with balanced class distribution.
-    """
-    smote = SMOTE(random_state=seed)
-    return smote.fit_resample(X, y)
-
-
 # ============================================================
 # Cell 4: Model Factory
 # ============================================================
@@ -182,7 +142,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
     Factory function that creates and returns a sklearn-compatible classifier.
 
     Parameters:
-        model_type (str): One of "rf", "xgboost", or "mlp".
+        model_type (str): One of "rf" or "xgboost".
         hyperparams (dict, optional): Model hyperparameters. Defaults to DEFAULT_HYPERPARAMS.
         class_weights (dict, optional): {class_label: weight} for imbalance handling.
         seed (int): Random seed.
@@ -191,7 +151,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
         sklearn-compatible classifier instance.
 
     Raises:
-        ValueError: If model_type is not one of "rf", "xgboost", "mlp".
+        ValueError: If model_type is not one of "rf" or "xgboost".
     """
     if hyperparams is None:
         hyperparams = DEFAULT_HYPERPARAMS[model_type].copy()
@@ -232,23 +192,8 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
             verbosity           = 0,            # Suppress XGBoost warnings
         )
 
-    elif model_type == "mlp":
-        # MLP — class_weight not natively supported, handled via sample_weight in fit()
-        return MLPClassifier(
-            hidden_layer_sizes  = hyperparams.get("hidden_layer_sizes", (100,)),
-            learning_rate_init  = hyperparams.get("learning_rate_init", 0.001),
-            alpha               = hyperparams.get("alpha", 0.0001),
-            batch_size          = hyperparams.get("batch_size", 200),
-            activation          = hyperparams.get("activation", "relu"),
-            max_iter            = hyperparams.get("max_iter", 200),
-            early_stopping      = hyperparams.get("early_stopping", True),
-            validation_fraction = hyperparams.get("validation_fraction", 0.1),
-            n_iter_no_change    = hyperparams.get("n_iter_no_change", 10),
-            random_state        = seed,
-        )
-
     else:
-        raise ValueError(f"Unknown model_type: '{model_type}'. Choose from: 'rf', 'xgboost', 'mlp'.")
+        raise ValueError(f"Unknown model_type: '{model_type}'. Choose from: 'rf', 'xgboost'.")
 
 
 # ============================================================
@@ -260,11 +205,8 @@ def train_and_predict(model_type, X_train, y_train, X_test,
     """
     Train a model and return raw predictions (no metrics computation).
 
-    Applies SMOTE to the training data before fitting to handle class imbalance.
-    SMOTE is NEVER applied to the test/validation data.
-
     Parameters:
-        model_type (str): "rf", "xgboost", or "mlp".
+        model_type (str): "rf" or "xgboost".
         X_train (pd.DataFrame or np.ndarray): Training features.
         y_train (pd.Series or np.ndarray): Training labels.
         X_test (pd.DataFrame or np.ndarray): Test/validation features.
@@ -288,20 +230,13 @@ def train_and_predict(model_type, X_train, y_train, X_test,
 
     y_train_arr = y_train.values.ravel() if isinstance(y_train, (pd.DataFrame, pd.Series)) else np.ravel(y_train)
 
-    # SMOTE on training data ONLY (never on test/val)
-    X_train_sel, y_train_arr = _apply_smote(X_train_sel, y_train_arr, seed)
-
     # Create and train model
     model = create_model(model_type, hyperparams, class_weights, seed)
 
     start_time = time.time()
-
-    # MLP: use sample_weight to handle class imbalance (not natively supported)
-    if model_type == "mlp" and class_weights:
-        sample_weights = np.array([class_weights.get(y, 1.0) for y in y_train_arr])
-        model.fit(X_train_sel, y_train_arr, sample_weight=sample_weights)
-    else:
-        model.fit(X_train_sel, y_train_arr)
+    
+    # Train the model
+    model.fit(X_train_sel, y_train_arr)
 
     training_time = time.time() - start_time
 
@@ -329,10 +264,9 @@ def fitness_function(model_type, X_train, y_train, feature_mask=None,
 
     This is the function metaheuristics call to score each candidate.
     Uses the TRAINING set only — val/test are never seen.
-    SMOTE is applied to each training fold only, never to the validation fold.
 
     Parameters:
-        model_type (str): "rf", "xgboost", or "mlp".
+        model_type (str): "rf" or "xgboost".
         X_train (pd.DataFrame or np.ndarray): Training features (full training set).
         y_train (pd.Series or np.ndarray): Training labels.
         feature_mask (np.ndarray, optional): Boolean mask for feature selection.
@@ -358,17 +292,8 @@ def fitness_function(model_type, X_train, y_train, feature_mask=None,
         X_fold_train, X_fold_val = X_sel[fold_train_idx], X_sel[fold_val_idx]
         y_fold_train, y_fold_val = y[fold_train_idx], y[fold_val_idx]
 
-        # SMOTE on training fold ONLY (never on validation fold)
-        X_fold_train, y_fold_train = _apply_smote(X_fold_train, y_fold_train, seed)
-
         model = create_model(model_type, hyperparams, class_weights, seed)
-
-        # MLP: sample weighting for class imbalance
-        if model_type == "mlp" and class_weights:
-            sample_weights = np.array([class_weights.get(y_i, 1.0) for y_i in y_fold_train])
-            model.fit(X_fold_train, y_fold_train, sample_weight=sample_weights)
-        else:
-            model.fit(X_fold_train, y_fold_train)
+        model.fit(X_fold_train, y_fold_train)
 
         y_pred = model.predict(X_fold_val)
         score  = f1_score(y_fold_val, y_pred, average="weighted")
