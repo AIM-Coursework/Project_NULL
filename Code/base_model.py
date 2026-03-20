@@ -8,7 +8,7 @@ via a configurable model_type parameter.
 Design:
   - Factory pattern: create_model() returns the correct sklearn-compatible estimator
   - train_and_predict(): single train/predict cycle returning raw outputs
-  - fitness_function(): 5-fold stratified CV for metaheuristic evaluation
+  - fitness_function(): 3-fold stratified CV for metaheuristic evaluation
   - Metrics computation and evaluation display deferred to evaluation.py
 
 Usage:
@@ -54,50 +54,51 @@ class ModelConfig:
     """
     model_type  : str = "rf"
     seed        : int = 42
-    cv_folds    : int = 5
+    cv_folds    : int = 3
 
+    @property
+    def default_hyperparams(self):
+        return {
+            "rf": {
+                "n_estimators"          : 100,
+                "max_depth"             : None,           # Unlimited depth
+                "min_samples_split"     : 2,
+                "min_samples_leaf"      : 1,
+                "max_features"          : "sqrt",
+            },
+            "xgboost": {
+                "n_estimators"          : 100,
+                "max_depth"             : 6,
+                "learning_rate"         : 0.3,
+                "subsample"             : 1.0,
+                "colsample_bytree"      : 1.0,
+                "gamma"                 : 0.0,
+                "reg_alpha"             : 0.0,
+                "reg_lambda"            : 1.0,
+            },
+        }
 
-# Default hyperparameters for each model type (sklearn defaults)
-DEFAULT_HYPERPARAMS = {
-    "rf": {
-        "n_estimators"          : 100,
-        "max_depth"             : None,           # Unlimited depth
-        "min_samples_split"     : 2,
-        "min_samples_leaf"      : 1,
-        "max_features"          : "sqrt",
-    },
-    "xgboost": {
-        "n_estimators"          : 100,
-        "max_depth"             : 6,
-        "learning_rate"         : 0.3,
-        "subsample"             : 1.0,
-        "colsample_bytree"      : 1.0,
-        "gamma"                 : 0.0,
-        "reg_alpha"             : 0.0,
-        "reg_lambda"            : 1.0,
-    },
-}
-
-# Hyperparameter search space bounds for each model (used by metaheuristics)
-HYPERPARAM_BOUNDS = {
-    "rf": {
-        "n_estimators"          : (50, 500),
-        "max_depth"             : (3, 50),
-        "min_samples_split"     : (2, 20),
-        "min_samples_leaf"      : (1, 10),
-        "max_features"          : (0.1, 1.0),     # Fraction of features
-    },
-    "xgboost": {
-        "n_estimators"          : (50, 500),
-        "max_depth"             : (3, 15),
-        "learning_rate"         : (0.01, 0.3),
-        "subsample"             : (0.5, 1.0),
-        "colsample_bytree"      : (0.3, 1.0),
-        "gamma"                 : (0.0, 5.0),
-        "reg_alpha"             : (0.0, 10.0),
-        "reg_lambda"            : (0.0, 10.0),
-    },
-}
+    @property
+    def hyperparam_bounds(self):
+        return {
+            "rf": {
+                "n_estimators"          : (50, 200),
+                "max_depth"             : (3, 20),
+                "min_samples_split"     : (2, 20),
+                "min_samples_leaf"      : (1, 10),
+                "max_features"          : (0.1, 1.0),     # Fraction of features
+            },
+            "xgboost": {
+                "n_estimators"          : (50, 200),
+                "max_depth"             : (3, 15),
+                "learning_rate"         : (0.01, 0.3),
+                "subsample"             : (0.5, 1.0),
+                "colsample_bytree"      : (0.3, 1.0),
+                "gamma"                 : (0.0, 5.0),
+                "reg_alpha"             : (0.0, 10.0),
+                "reg_lambda"            : (0.0, 10.0),
+            },
+        }
 
 # Human-readable model names
 MODEL_NAMES = {
@@ -143,7 +144,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
 
     Parameters:
         model_type (str): One of "rf" or "xgboost".
-        hyperparams (dict, optional): Model hyperparameters. Defaults to DEFAULT_HYPERPARAMS.
+        hyperparams (dict, optional): Model hyperparameters. Defaults to ModelConfig.default_hyperparams.
         class_weights (dict, optional): {class_label: weight} for imbalance handling.
         seed (int): Random seed.
 
@@ -154,7 +155,8 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
         ValueError: If model_type is not one of "rf" or "xgboost".
     """
     if hyperparams is None:
-        hyperparams = DEFAULT_HYPERPARAMS[model_type].copy()
+        cfg = ModelConfig(model_type=model_type, seed=seed)
+        hyperparams = cfg.default_hyperparams[model_type].copy()
 
     
     if model_type == "rf":
@@ -167,7 +169,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
             max_features        = hyperparams.get("max_features", "sqrt"),
             class_weight        = class_weights,
             random_state        = seed,
-            n_jobs              = -1,               # Use all CPU cores
+            n_jobs              = -1,              # Reverting to -1 since we are subsampling 5-20% and not OOMing
         )
 
     elif model_type == "xgboost":
@@ -187,7 +189,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
             reg_lambda          = hyperparams.get("reg_lambda", 1.0),
             scale_pos_weight    = scale_pos_weight,
             random_state        = seed,
-            n_jobs              = -1,
+            n_jobs              = -1,              # Reverting to -1 since we are subsampling 5-20% and not OOMing
             eval_metric         = "logloss",
             verbosity           = 0,            # Suppress XGBoost warnings
         )
@@ -254,11 +256,11 @@ def train_and_predict(model_type, X_train, y_train, X_test,
 
 
 # ============================================================
-# Cell 6: Fitness Function (5-Fold CV)
+# Cell 6: Fitness Function (3-Fold CV)
 # ============================================================
 
 def fitness_function(model_type, X_train, y_train, feature_mask=None,
-                     hyperparams=None, class_weights=None, n_folds=5, seed=42):
+                     hyperparams=None, class_weights=None, cfg=None):
     """
     Evaluate a candidate solution using stratified k-fold cross-validation.
 
@@ -284,6 +286,11 @@ def fitness_function(model_type, X_train, y_train, feature_mask=None,
         return 0.0  # No features selected → worst fitness
 
     y = y_train.values.ravel() if isinstance(y_train, (pd.DataFrame, pd.Series)) else np.ravel(y_train)
+
+    if cfg is None:
+        cfg = ModelConfig(model_type=model_type)
+    n_folds = cfg.cv_folds
+    seed = cfg.seed
 
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
     fold_scores = []

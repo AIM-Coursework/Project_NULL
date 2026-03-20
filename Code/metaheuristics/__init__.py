@@ -1,0 +1,133 @@
+"""
+Shared Base Class for Metaheuristic Optimisation
+================================================
+Provides common functionality for all metaheuristics:
+- Stratified subsampling of training data
+- Encoding/decoding of solutions
+- Fitness evaluation
+
+A solution is represented as a 1D NumPy array of continuous values in [0, 1].
+- The first `n_features` elements determine feature selection (mask > 0.5).
+- The remaining elements are linearly mapped to hyperparameter bounds.
+"""
+
+import os
+import sys
+import time
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+# Import fitness_function from base_model
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from base_model import fitness_function
+
+class MetaheuristicBase:
+    def __init__(self, model_type, X_train, y_train, class_weights,
+                 n_features, hyperparam_bounds, cfg=None,
+                 subsample_ratio=0.05, max_generations=30, pop_size=20):
+        """
+        Initialize the base metaheuristic attributes and prepare data.
+        """
+        self.model_type = model_type
+        self.class_weights = class_weights
+        self.n_features = n_features
+        self.hyperparam_bounds = hyperparam_bounds
+        self.cfg = cfg
+        self.seed = cfg.seed if cfg else 42
+        self.max_generations = max_generations
+        self.pop_size = pop_size
+        
+        # Set seeds
+        np.random.seed(self.seed)
+        
+        # Extract hyperparameter ordered keys
+        self.hp_keys = list(self.hyperparam_bounds.keys())
+        self.n_hyperparams = len(self.hp_keys)
+        self.solution_dim = self.n_features + self.n_hyperparams
+        
+        # Stratified subsampling for fitness evaluations
+        # We only need fitness rankings to be correct, so 20% is sufficient and much faster.
+        if subsample_ratio < 1.0:
+            print(f"Creating {subsample_ratio*100:.0f}% stratified subsample for fitness evaluations...")
+            # We don't need the other 80% here, we only use the subsample for fitness
+            self.X_sub, _, self.y_sub, _ = train_test_split(
+                X_train, y_train, train_size=subsample_ratio,
+                stratify=y_train, random_state=self.seed
+            )
+        else:
+            self.X_sub, self.y_sub = X_train, y_train
+            
+        y_arr = self.y_sub.values.ravel() if hasattr(self.y_sub, "values") else np.ravel(self.y_sub)
+        print(f"Subsample size: {len(y_arr):,} | Normal: {(y_arr == 0).sum():,} | Attack: {(y_arr == 1).sum():,}")
+        
+        # Cache for fitness evaluations to prevent redundant re-evaluations
+        self._fitness_cache = {}
+
+    def _decode_solution(self, solution):
+        """
+        Decode a continuous [0, 1] solution vector into feature_mask and hyperparams.
+        """
+        # 1. Feature Mask (first n_features elements)
+        feature_vector = solution[:self.n_features]
+        feature_mask = (feature_vector >= 0.5).astype(bool)
+        
+        # Ensure at least one feature is selected (fallback to feature 0)
+        if not np.any(feature_mask):
+            feature_mask[0] = True
+            
+        # 2. Hyperparameters (remaining elements)
+        hp_vector = solution[self.n_features:]
+        hyperparams = {}
+        for i, key in enumerate(self.hp_keys):
+            lower, upper = self.hyperparam_bounds[key]
+            val = lower + hp_vector[i] * (upper - lower)
+            
+            # If bounds are purely integers, round and cast
+            # (e.g. n_estimators, max_depth)
+            if isinstance(lower, int) and isinstance(upper, int):
+                val = int(round(val))
+            hyperparams[key] = val
+            
+        return feature_mask, hyperparams
+
+    def _evaluate(self, solution):
+        """
+        Decode solution and call the external fitness_function.
+        Returns the weighted F1-score (higher is better).
+        """
+        feature_mask, hyperparams = self._decode_solution(solution)
+        
+        # Create a hashable cache key from decoded features and hyperparams
+        mask_tuple = tuple(feature_mask.tolist())
+        hp_tuple = tuple(sorted(hyperparams.items()))
+        cache_key = (mask_tuple, hp_tuple)
+        
+        if cache_key in self._fitness_cache:
+            return self._fitness_cache[cache_key]
+        
+        score = fitness_function(
+            model_type=self.model_type,
+            X_train=self.X_sub,
+            y_train=self.y_sub,
+            feature_mask=feature_mask,
+            hyperparams=hyperparams,
+            class_weights=self.class_weights,
+            cfg=self.cfg
+        )
+        self._fitness_cache[cache_key] = score
+        return score
+
+    def run(self):
+        """
+        To be implemented by subclasses.
+        Must return a dict containing:
+        {
+            "best_solution": [...]
+            "best_feature_mask": [...]
+            "best_hyperparams": {...}
+            "best_fitness": float
+            "convergence_history": [history of best fitness per gen]
+            "runtime": float
+        }
+        """
+        raise NotImplementedError("run() must be implemented by the subclass.")
