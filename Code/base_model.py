@@ -169,7 +169,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
             max_features        = hyperparams.get("max_features", "sqrt"),
             class_weight        = class_weights,
             random_state        = seed,
-            n_jobs              = -1,              # Reverting to -1 since we are subsampling 5-20% and not OOMing
+            n_jobs              = 2,              # Changed from -1 to prevent ArrayMemoryError on full dataset
         )
 
     elif model_type == "xgboost":
@@ -189,7 +189,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
             reg_lambda          = hyperparams.get("reg_lambda", 1.0),
             scale_pos_weight    = scale_pos_weight,
             random_state        = seed,
-            n_jobs              = -1,              # Reverting to -1 since we are subsampling 5-20% and not OOMing
+            n_jobs              = 2,              # Changed from -1 to prevent ArrayMemoryError on full dataset
             eval_metric         = "logloss",
             verbosity           = 0,            # Suppress XGBoost warnings
         )
