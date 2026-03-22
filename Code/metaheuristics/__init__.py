@@ -15,15 +15,16 @@ import os
 import sys
 import time
 import numpy as np
+from typing import Optional
 from sklearn.model_selection import train_test_split
 
 # Import fitness_function from base_model
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from base_model import fitness_function
+from base_model import fitness_function, ModelConfig
 
 class MetaheuristicBase:
     def __init__(self, model_type, X_train, y_train, class_weights,
-                 n_features, hyperparam_bounds, cfg=None,
+                 n_features, hyperparam_bounds, cfg: Optional[ModelConfig]=None,
                  subsample_ratio=0.05, max_generations=30, pop_size=20):
         """
         Initialize the base metaheuristic attributes and prepare data.
@@ -116,6 +117,27 @@ class MetaheuristicBase:
         )
         self._fitness_cache[cache_key] = score
         return score
+
+    # def _has_converged(self, convergence_history):
+    #     """
+    #     Check if the search has converged (no improvement for `patience` generations).
+
+    #     Parameters:
+    #         convergence_history (list): Best fitness per generation.
+
+    #     Returns:
+    #         bool: True if the last `convergence_patience` entries are identical.
+    #     """
+    #     p = self.convergence_patience
+    #     if len(convergence_history) < p:
+    #         return False
+    #     recent = convergence_history[-p:]
+    #     return all(abs(recent[i] - recent[0]) < 1e-6 for i in range(1, len(recent)))
+                
+    #             # Code to all to all metaheuristics if implementing early stopping/convergence
+    #             if self._has_converged(convergence_history):
+    #                 print(f"\n  Converged at generation {gen + 1} (no improvement for {self.convergence_patience} gens)")
+    #                 break
 
     def run(self):
         """

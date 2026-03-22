@@ -56,6 +56,7 @@ class ModelConfig:
     seed        : int = 42
     cv_folds    : int = 3
 
+    # Default hyperparameters for each model type (No metaheuristic optimisation)
     @property
     def default_hyperparams(self):
         return {
@@ -78,6 +79,7 @@ class ModelConfig:
             },
         }
 
+    # Hyperparameter bounds for each model type (For metaheuristic optimisation)
     @property
     def hyperparam_bounds(self):
         return {

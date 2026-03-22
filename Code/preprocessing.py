@@ -392,19 +392,19 @@ def normalise_features(X_train, X_val, X_test):
         scaler.fit_transform(X_train),
         columns=X_train.columns,
         index=X_train.index
-    )
+    ).astype(np.float32)
 
     # Transform val and test using the SAME fitted scaler
     X_val_scaled = pd.DataFrame(
         scaler.transform(X_val),
         columns=X_val.columns,
         index=X_val.index
-    )
+    ).astype(np.float32)
     X_test_scaled = pd.DataFrame(
         scaler.transform(X_test),
         columns=X_test.columns,
         index=X_test.index
-    )
+    ).astype(np.float32)
 
     print(f"  Scaler fit on {len(X_train):,} training samples")
     print(f"  Feature range (train): [{X_train_scaled.min().min():.4f}, {X_train_scaled.max().max():.4f}]")
