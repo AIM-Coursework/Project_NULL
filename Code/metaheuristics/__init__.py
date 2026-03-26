@@ -25,7 +25,7 @@ from base_model import fitness_function, ModelConfig
 class MetaheuristicBase:
     def __init__(self, model_type, X_train, y_train, class_weights,
                  n_features, hyperparam_bounds, cfg: Optional[ModelConfig]=None,
-                 subsample_ratio=0.05, max_generations=30, pop_size=20):
+                 subsample_ratio=0.05, max_generations=15, pop_size=20):
         """
         Initialize the base metaheuristic attributes and prepare data.
         """
@@ -57,9 +57,19 @@ class MetaheuristicBase:
             )
         else:
             self.X_sub, self.y_sub = X_train, y_train
-            
-        y_arr = self.y_sub.values.ravel() if hasattr(self.y_sub, "values") else np.ravel(self.y_sub)
-        print(f"Subsample size: {len(y_arr):,} | Normal: {(y_arr == 0).sum():,} | Attack: {(y_arr == 1).sum():,}")
+
+        # Cast to float32 to halve memory footprint (float64 -> float32)
+        if hasattr(self.X_sub, "values"):
+            self.X_sub = self.X_sub.values.astype(np.float32)
+        else:
+            self.X_sub = np.asarray(self.X_sub, dtype=np.float32)
+
+        if hasattr(self.y_sub, "values"):
+            self.y_sub = self.y_sub.values.ravel()
+        else:
+            self.y_sub = np.ravel(self.y_sub)
+
+        print(f"Subsample size: {len(self.y_sub):,} | Normal: {(self.y_sub == 0).sum():,} | Attack: {(self.y_sub == 1).sum():,}")
         
         # Cache for fitness evaluations to prevent redundant re-evaluations
         self._fitness_cache = {}
@@ -113,7 +123,8 @@ class MetaheuristicBase:
             feature_mask=feature_mask,
             hyperparams=hyperparams,
             class_weights=self.class_weights,
-            cfg=self.cfg
+            cfg=self.cfg,
+            n_jobs=1  # Single-threaded during search to prevent OOM from worker forking
         )
         self._fitness_cache[cache_key] = score
         return score

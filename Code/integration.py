@@ -83,7 +83,7 @@ def run_experiment(model_type, meta_choice, X_train, y_train, X_test, class_weig
             hyperparam_bounds=bounds,
             cfg=cfg,
             subsample_ratio=0.05,   # Use 5% for fitness
-            max_generations=30,    # Default as per project scope
+            max_generations=15,    # Default as per project scope
             pop_size=20
         )
         

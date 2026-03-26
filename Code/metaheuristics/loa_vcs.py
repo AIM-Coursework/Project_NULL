@@ -7,6 +7,7 @@ Virus Colony Search (VCS) exploitation.
 """
 
 import time
+import gc
 import numpy as np
 from tqdm import tqdm
 from . import MetaheuristicBase
@@ -63,10 +64,12 @@ class HybridLOAVCS(MetaheuristicBase):
                 # ==========================
                 # LOA Phase (Exploration)
                 # ==========================
+                current_roaming_step = self.roaming_step * (1.0 - (gen / self.max_generations))
+                
                 # Pride
                 for i in range(1, pride_size):
                     step = np.random.rand(self.solution_dim) * (gbest_position - positions[i])
-                    noise = np.random.normal(0, self.roaming_step, self.solution_dim)
+                    noise = np.random.normal(0, current_roaming_step, self.solution_dim)
                     new_positions[i] = np.clip(positions[i] + step + noise, 0.0, 1.0)
                     
                 # Nomads
@@ -107,6 +110,9 @@ class HybridLOAVCS(MetaheuristicBase):
                     gbest_fitness = fit
                     gbest_position = positions[i].copy()
                     
+            # Explicit garbage collection to prevent joblib OOMs 
+            gc.collect()
+            
             convergence_history.append(gbest_fitness)
             pbar.set_postfix(best_f1=f"{gbest_fitness:.4f}")
             

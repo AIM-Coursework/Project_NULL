@@ -62,7 +62,7 @@ class ModelConfig:
         return {
             "rf": {
                 "n_estimators"          : 100,
-                "max_depth"             : None,           # Unlimited depth
+                "max_depth"             : 10,           # Unlimited depth
                 "min_samples_split"     : 2,
                 "min_samples_leaf"      : 1,
                 "max_features"          : "sqrt",
@@ -84,10 +84,10 @@ class ModelConfig:
     def hyperparam_bounds(self):
         return {
             "rf": {
-                "n_estimators"          : (50, 200),
-                "max_depth"             : (3, 20),
-                "min_samples_split"     : (2, 20),
-                "min_samples_leaf"      : (1, 10),
+                "n_estimators"          : (50, 100),
+                "max_depth"             : (3, 10),
+                "min_samples_split"     : (2, 10),
+                "min_samples_leaf"      : (1, 5),
                 "max_features"          : (0.1, 1.0),     # Fraction of features
             },
             "xgboost": {
@@ -140,7 +140,7 @@ def _apply_feature_mask(X, feature_mask):
 # Cell 4: Model Factory
 # ============================================================
 
-def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
+def create_model(model_type, hyperparams=None, class_weights=None, seed=42, n_jobs=2):
     """
     Factory function that creates and returns a sklearn-compatible classifier.
 
@@ -149,6 +149,9 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
         hyperparams (dict, optional): Model hyperparameters. Defaults to ModelConfig.default_hyperparams.
         class_weights (dict, optional): {class_label: weight} for imbalance handling.
         seed (int): Random seed.
+        n_jobs (int): Number of parallel jobs. Use 1 during fitness evaluation
+            to prevent memory duplication from worker process forking.
+            Use 2 (default) for final training on the full dataset.
 
     Returns:
         sklearn-compatible classifier instance.
@@ -165,13 +168,13 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
         # Random Forest — class_weight passed directly
         return RandomForestClassifier(
             n_estimators        = hyperparams.get("n_estimators", 100),
-            max_depth           = hyperparams.get("max_depth", None),
+            max_depth           = hyperparams.get("max_depth", 10),
             min_samples_split   = hyperparams.get("min_samples_split", 2),
             min_samples_leaf    = hyperparams.get("min_samples_leaf", 1),
             max_features        = hyperparams.get("max_features", "sqrt"),
             class_weight        = class_weights,
             random_state        = seed,
-            n_jobs              = 2,              # Changed from -1 to prevent ArrayMemoryError on full dataset
+            n_jobs              = n_jobs,
         )
 
     elif model_type == "xgboost":
@@ -191,7 +194,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42):
             reg_lambda          = hyperparams.get("reg_lambda", 1.0),
             scale_pos_weight    = scale_pos_weight,
             random_state        = seed,
-            n_jobs              = 2,              # Changed from -1 to prevent ArrayMemoryError on full dataset
+            n_jobs              = n_jobs,
             eval_metric         = "logloss",
             verbosity           = 0,            # Suppress XGBoost warnings
         )
@@ -262,7 +265,7 @@ def train_and_predict(model_type, X_train, y_train, X_test,
 # ============================================================
 
 def fitness_function(model_type, X_train, y_train, feature_mask=None,
-                     hyperparams=None, class_weights=None, cfg=None):
+                     hyperparams=None, class_weights=None, cfg=None, n_jobs=2):
     """
     Evaluate a candidate solution using stratified k-fold cross-validation.
 
@@ -276,8 +279,9 @@ def fitness_function(model_type, X_train, y_train, feature_mask=None,
         feature_mask (np.ndarray, optional): Boolean mask for feature selection.
         hyperparams (dict, optional): Model hyperparameters.
         class_weights (dict, optional): {class_label: weight}.
-        n_folds (int): Number of CV folds.
-        seed (int): Random seed.
+        cfg (ModelConfig, optional): Model configuration.
+        n_jobs (int): Number of parallel jobs for model training. Defaults to 1
+            during search to prevent memory duplication from worker forking.
 
     Returns:
         float: Mean weighted F1-score across all folds (higher = better).
@@ -301,7 +305,7 @@ def fitness_function(model_type, X_train, y_train, feature_mask=None,
         X_fold_train, X_fold_val = X_sel[fold_train_idx], X_sel[fold_val_idx]
         y_fold_train, y_fold_val = y[fold_train_idx], y[fold_val_idx]
 
-        model = create_model(model_type, hyperparams, class_weights, seed)
+        model = create_model(model_type, hyperparams, class_weights, seed, n_jobs=n_jobs)
         model.fit(X_fold_train, y_fold_train)
 
         y_pred = model.predict(X_fold_val)

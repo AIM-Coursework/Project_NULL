@@ -7,6 +7,7 @@ Implements the Lion Optimisation Algorithm.
 """
 
 import time
+import gc
 import numpy as np
 from tqdm import tqdm
 from . import MetaheuristicBase
@@ -57,10 +58,12 @@ class LionOptimisationAlgorithm(MetaheuristicBase):
             new_positions[0] = positions[0].copy()
             
             # Pride behavior (hunting / exploitation)
+            current_roaming_step = self.roaming_step * (1.0 - (gen / self.max_generations))
+            
             for i in range(1, pride_size):
                 # Move towards the alpha lion (gbest)
                 step = np.random.rand(self.solution_dim) * (gbest_position - positions[i])
-                noise = np.random.normal(0, self.roaming_step, self.solution_dim)
+                noise = np.random.normal(0, current_roaming_step, self.solution_dim)
                 
                 pos = positions[i] + step + noise
                 new_positions[i] = np.clip(pos, 0.0, 1.0)
@@ -81,6 +84,9 @@ class LionOptimisationAlgorithm(MetaheuristicBase):
                 if fit > gbest_fitness:
                     gbest_fitness = fit
                     gbest_position = positions[i].copy()
+            
+            # Explicit garbage collection to prevent Random Forest / Joblib memory leaks
+            gc.collect()
                     
             convergence_history.append(gbest_fitness)
             pbar.set_postfix(best_f1=f"{gbest_fitness:.4f}")
