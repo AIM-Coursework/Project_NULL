@@ -60,23 +60,8 @@ class ModelConfig:
     @property
     def default_hyperparams(self):
         return {
-            "rf": {
-                "n_estimators"          : 100,
-                "max_depth"             : 10,           # Unlimited depth
-                "min_samples_split"     : 2,
-                "min_samples_leaf"      : 1,
-                "max_features"          : "sqrt",
-            },
-            "xgboost": {
-                "n_estimators"          : 100,
-                "max_depth"             : 6,
-                "learning_rate"         : 0.3,
-                "subsample"             : 1.0,
-                "colsample_bytree"      : 1.0,
-                "gamma"                 : 0.0,
-                "reg_alpha"             : 0.0,
-                "reg_lambda"            : 1.0,
-            },
+            "rf": {},
+            "xgboost": {},
         }
 
     # Hyperparameter bounds for each model type (For metaheuristic optimisation)
@@ -149,9 +134,9 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42, n_jo
         hyperparams (dict, optional): Model hyperparameters. Defaults to ModelConfig.default_hyperparams.
         class_weights (dict, optional): {class_label: weight} for imbalance handling.
         seed (int): Random seed.
-        n_jobs (int): Number of parallel jobs. Use 1 during fitness evaluation
-            to prevent memory duplication from worker process forking.
-            Use 2 (default) for final training on the full dataset.
+        n_jobs (int): Number of parallel jobs. Use 1 during fitness evaluation 
+        if OOM/ArrayMemoryErrors occur to prevent memory duplication from worker process
+        forking. Use 2 (default) for final training on the full dataset.
 
     Returns:
         sklearn-compatible classifier instance.

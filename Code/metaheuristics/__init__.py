@@ -47,10 +47,8 @@ class MetaheuristicBase:
         self.solution_dim = self.n_features + self.n_hyperparams
         
         # Stratified subsampling for fitness evaluations
-        # We only need fitness rankings to be correct, so 20% is sufficient and much faster.
         if subsample_ratio < 1.0:
             print(f"Creating {subsample_ratio*100:.0f}% stratified subsample for fitness evaluations...")
-            # We don't need the other 80% here, we only use the subsample for fitness
             self.X_sub, _, self.y_sub, _ = train_test_split(
                 X_train, y_train, train_size=subsample_ratio,
                 stratify=y_train, random_state=self.seed
@@ -124,7 +122,7 @@ class MetaheuristicBase:
             hyperparams=hyperparams,
             class_weights=self.class_weights,
             cfg=self.cfg,
-            n_jobs=1  # Single-threaded during search to prevent OOM from worker forking
+            n_jobs=2  # Switch to n_jobs = 1 if OOM/ArrayMemoryError occurs (Testing at n_jobs=2 for now)
         )
         self._fitness_cache[cache_key] = score
         return score

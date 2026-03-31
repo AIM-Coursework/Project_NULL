@@ -1,9 +1,10 @@
 """
 LOA-VCS Hybrid Algorithm
 ========================
-Combines Lion Optimisation Algorithm (LOA) exploration with 
+Combines Lion Optimisation Algorithm (LOA) exploration with
 Virus Colony Search (VCS) exploitation.
-- Alternating generations between LOA and VCS rules.
+- First half of generations: LOA phase (exploration)
+- Second half of generations: VCS phase (exploitation)
 """
 
 import time
@@ -60,7 +61,7 @@ class HybridLOAVCS(MetaheuristicBase):
             # Elitism: keep best
             new_positions[0] = positions[0].copy()
             
-            if gen % 2 == 0:
+            if gen < self.max_generations // 2:
                 # ==========================
                 # LOA Phase (Exploration)
                 # ==========================

@@ -4,7 +4,7 @@ CICIDS2017 Preprocessing Pipeline
 Loads, cleans, and prepares the CICIDS2017 CSV dataset for downstream
 metaheuristic optimisation experiments (feature selection + hyperparameter tuning).
 
-Design patterns adopted from SkinCancerModel.ipynb:
+Design patterns used throughout this module:
   - @dataclass configuration (single source of truth for all thresholds)
   - set_seed() for reproducibility
   - Stratified 70/15/15 train/val/test split
@@ -319,7 +319,7 @@ def stratified_split(df, cfg):
     """
     Split data into 70% train, 15% validation, 15% test using stratified sampling.
 
-    Follows the same pattern as SkinCancerModel.ipynb Cell 6:
+    Two-stage split:
         1. Split 70/30 (train / temp)
         2. Split temp 50/50 (val / test)
 
@@ -371,7 +371,7 @@ def normalise_features(X_train, X_val, X_test):
     Apply Min-Max normalisation to [0, 1] range.
 
     The scaler is fit on training data only, then applied to val and test.
-    This prevents data leakage (same principle as shared encoders in SkinCancerModel).
+    This prevents data leakage: val/test statistics must not influence the scaler.
 
     Parameters:
         X_train (pd.DataFrame): Training features.
@@ -421,7 +421,7 @@ def compute_class_weights(y_train):
     Compute inverse-frequency class weights for the fitness function.
 
     Formula: weight = n_samples / (n_classes * class_count)
-    Same formula as SkinCancerModel.ipynb Cell 6.
+    This is the standard sklearn-balanced weighting formula applied manually.
 
     Parameters:
         y_train (pd.Series): Training labels (binary: 0 or 1).
@@ -495,7 +495,7 @@ def save_processed_data(X_train, X_val, X_test, y_train, y_val, y_test,
         pickle.dump(scaler, f)
     print(f"  Saved: scaler.pkl")
 
-    # Save configuration + metadata (asdict pattern from SkinCancerModel)
+    # Save configuration + metadata as JSON for experiment reproducibility
     config_metadata = {
         "preprocess_config": asdict(cfg),
         "feature_names": feature_names,
