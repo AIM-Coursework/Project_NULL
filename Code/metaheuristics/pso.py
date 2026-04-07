@@ -38,7 +38,7 @@ class ParticleSwarmOptimisation(MetaheuristicBase):
         
         # Evaluate initial swarm
         print(f"\nEvaluating initial swarm (size: {self.pop_size})...")
-        for i in tqdm(range(self.pop_size), desc="Initial Swarm"):
+        for i in tqdm(range(self.pop_size), desc="Initial Swarm", dynamic_ncols=True):
             fit = self._evaluate(positions[i])
             pbest_fitnesses[i] = fit
             if fit > gbest_fitness:
@@ -48,7 +48,7 @@ class ParticleSwarmOptimisation(MetaheuristicBase):
         convergence_history = []
         print("\nStarting Particle Swarm Optimisation...")
         
-        pbar = tqdm(range(self.max_generations), desc="PSO Generations")
+        pbar = tqdm(range(self.max_generations), desc="PSO Generations", dynamic_ncols=True)
         for gen in pbar:
             gen_start = time.time()
             

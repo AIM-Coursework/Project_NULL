@@ -54,7 +54,7 @@ class GeneticAlgorithm(MetaheuristicBase):
         
         # Evaluate initial population
         print(f"\nEvaluating initial population (size: {self.pop_size})...")
-        for i in tqdm(range(self.pop_size), desc="Initial Population"):
+        for i in tqdm(range(self.pop_size), desc="Initial Population", dynamic_ncols=True):
             fitnesses[i] = self._evaluate(population[i])
             
         gbest_fitness = -np.inf
@@ -63,7 +63,7 @@ class GeneticAlgorithm(MetaheuristicBase):
         
         print("\nStarting Genetic Algorithm...")
         
-        pbar = tqdm(range(self.max_generations), desc="GA Generations")
+        pbar = tqdm(range(self.max_generations), desc="GA Generations", dynamic_ncols=True)
         for gen in pbar:
             gen_start = time.time()
             

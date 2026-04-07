@@ -33,7 +33,7 @@ class LionOptimisationAlgorithm(MetaheuristicBase):
         
         # Evaluate initial population
         print(f"\nEvaluating initial population (size: {self.pop_size})...")
-        for i in tqdm(range(self.pop_size), desc="Initial Population"):
+        for i in tqdm(range(self.pop_size), desc="Initial Population", dynamic_ncols=True):
             fit = self._evaluate(positions[i])
             fitnesses[i] = fit
             if fit > gbest_fitness:
@@ -43,7 +43,7 @@ class LionOptimisationAlgorithm(MetaheuristicBase):
         convergence_history = []
         print("\nStarting Lion Optimisation Algorithm (LOA)...")
         
-        pbar = tqdm(range(self.max_generations), desc="LOA Generations")
+        pbar = tqdm(range(self.max_generations), desc="LOA Generations", dynamic_ncols=True)
         for gen in pbar:
             gen_start = time.time()
             

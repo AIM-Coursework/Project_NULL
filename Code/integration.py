@@ -98,7 +98,7 @@ def run_experiment(model_type, meta_choice, X_train, y_train, X_test, class_weig
     print("\nTraining final model on FULL training set...")
     
     # Train on full data wrapped in a tqdm timer for consistency
-    for _ in tqdm(range(1), desc=f"Final Training ({model_type.upper()})"):
+    for _ in tqdm(range(1), desc=f"Final Training ({model_type.upper()})", dynamic_ncols=True):
         final_results = train_and_predict(
             model_type=model_type,
             X_train=X_train,
@@ -198,7 +198,7 @@ def main():
     # train on full training dataset, so we pass X_test as eval.
     if meta_choice == 6:
         # Run all
-        for choice in tqdm(range(0, 6), desc="Running All Metaheuristics"):
+        for choice in tqdm(range(0, 6), desc="Running All Metaheuristics", dynamic_ncols=True):
             run_experiment(model_type, choice, X_train, y_train, X_test, class_weights, cfg)
     else:
         run_experiment(model_type, meta_choice, X_train, y_train, X_test, class_weights, cfg)

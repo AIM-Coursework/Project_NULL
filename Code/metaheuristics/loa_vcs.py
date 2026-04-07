@@ -38,7 +38,7 @@ class HybridLOAVCS(MetaheuristicBase):
         
         # Evaluate initial population
         print(f"\nEvaluating initial population (size: {self.pop_size})...")
-        for i in tqdm(range(self.pop_size), desc="Initial Population"):
+        for i in tqdm(range(self.pop_size), desc="Initial Population", dynamic_ncols=True):
             fit = self._evaluate(positions[i])
             fitnesses[i] = fit
             if fit > gbest_fitness:
@@ -48,7 +48,7 @@ class HybridLOAVCS(MetaheuristicBase):
         convergence_history = []
         print("\nStarting LOA-VCS Hybrid Algorithm...")
         
-        pbar = tqdm(range(self.max_generations), desc="LOA-VCS Generations")
+        pbar = tqdm(range(self.max_generations), desc="LOA-VCS Generations", dynamic_ncols=True)
         for gen in pbar:
             gen_start = time.time()
             new_positions = np.zeros_like(positions)
