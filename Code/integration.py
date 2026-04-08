@@ -8,25 +8,28 @@ Usage:
     python Code/integration.py
 """
 
+# Python Standard Libraries
 import os
 import sys
 import time
 import json
 import pickle
 from datetime import datetime
-import numpy as np
-from tqdm import tqdm
+
+# External Libraries
+import numpy as np      # For numerical operations | Used to save predictions
+from tqdm import tqdm   # For progress bars
 
 # Import shared modules
-from preprocessing import load_processed_data, set_seed
-from base_model import train_and_predict, ModelConfig
+from preprocessing import load_processed_data, set_seed     # Used to load processed data and set seed
+from base_model import train_and_predict, ModelConfig       # Used to train and predict | Used to set base hyperparameters
 
 # Import Metaheuristics
-from metaheuristics.ga import GeneticAlgorithm
-from metaheuristics.pso import ParticleSwarmOptimisation
-from metaheuristics.loa import LionOptimisationAlgorithm
-from metaheuristics.vcs import VirusColonySearch
-from metaheuristics.loa_vcs import HybridLOAVCS
+from metaheuristics.ga import GeneticAlgorithm              # Used to run Genetic Algorithm
+from metaheuristics.pso import ParticleSwarmOptimisation    # Used to run Particle Swarm Optimisation
+from metaheuristics.loa import LionOptimisationAlgorithm    # Used to run Lion Optimisation Algorithm
+from metaheuristics.vcs import VirusColonySearch            # Used to run Virus Colony Search
+from metaheuristics.loa_vcs import HybridLOAVCS             # Used to run Hybrid LOA-VCS
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")

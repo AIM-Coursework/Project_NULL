@@ -15,10 +15,6 @@ Usage:
     from base_model import create_model, train_and_predict, fitness_function
 """
 
-# ============================================================
-# Cell 1: Imports & Seed
-# ============================================================
-
 import os                                               # Used for path manipulation and file operations
 import sys                                              # Used for system-specific parameters and functions
 import time                                             # Used for timing the execution
@@ -38,8 +34,7 @@ from preprocessing import set_seed, load_processed_data
 set_seed(42)
 
 
-# ============================================================
-# Cell 2: Configuration
+# Component 2: Configuration
 # ============================================================
 
 @dataclass
@@ -94,8 +89,7 @@ MODEL_NAMES = {
 }
 
 
-# ============================================================
-# Cell 3: Helpers
+# Component 3: Helpers
 # ============================================================
 
 def _apply_feature_mask(X, feature_mask):
@@ -121,8 +115,7 @@ def _apply_feature_mask(X, feature_mask):
         return X_arr, X_arr.shape[1]
 
 
-# ============================================================
-# Cell 4: Model Factory
+# Component 4: Model Factory
 # ============================================================
 
 def create_model(model_type, hyperparams=None, class_weights=None, seed=42, n_jobs=2):
@@ -188,8 +181,7 @@ def create_model(model_type, hyperparams=None, class_weights=None, seed=42, n_jo
         raise ValueError(f"Unknown model_type: '{model_type}'. Choose from: 'rf', 'xgboost'.")
 
 
-# ============================================================
-# Cell 5: Train & Predict
+# Component 5: Train & Predict
 # ============================================================
 
 def train_and_predict(model_type, X_train, y_train, X_test,
@@ -245,8 +237,7 @@ def train_and_predict(model_type, X_train, y_train, X_test,
     }
 
 
-# ============================================================
-# Cell 6: Fitness Function (3-Fold CV)
+# Component 6: Fitness Function (3-Fold CV)
 # ============================================================
 
 def fitness_function(model_type, X_train, y_train, feature_mask=None,
@@ -265,7 +256,7 @@ def fitness_function(model_type, X_train, y_train, feature_mask=None,
         hyperparams (dict, optional): Model hyperparameters.
         class_weights (dict, optional): {class_label: weight}.
         cfg (ModelConfig, optional): Model configuration.
-        n_jobs (int): Number of parallel jobs for model training. Defaults to 1
+        n_jobs (int): Number of parallel jobs for model training. Defaults to 2
             during search to prevent memory duplication from worker forking.
 
     Returns:
