@@ -14,14 +14,17 @@ Design:
 Usage:
     from base_model import create_model, train_and_predict, fitness_function
 """
-
+# Python Standard Libraries
 import os                                               # Used for path manipulation and file operations
 import sys                                              # Used for system-specific parameters and functions
 import time                                             # Used for timing the execution
-import numpy as np                                      # Used for numerical operations
-import pandas as pd                                     # Used for data manipulation and analysis
 from dataclasses import dataclass                       # Used for creating the configuration class
 
+# External Libraries
+import numpy as np                                      # Used for numerical operations
+import pandas as pd                                     # Used for data manipulation and analysis
+
+# Scikit-learn
 from sklearn.ensemble import RandomForestClassifier     # Used for Random Forest classification
 from sklearn.model_selection import StratifiedKFold     # Used for stratified cross-validation
 from sklearn.metrics import f1_score                    # Only metric needed internally (fitness function)
