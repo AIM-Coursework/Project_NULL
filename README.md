@@ -98,6 +98,8 @@ python Code/evaluation.py
 * **File Role:** 
 
     Sweeps inside the `results/` directory, extracts actual `y_test` metrics, and dynamically computes tables scoring `Accuracy`, `Precision`, `F1-score` across Binary/Macro/Weighted classes alongside `FPR`, `Training Time`, and `Search Time`.
+
+    * **Note**: It will scan all the files within `results/`, therefore if you would like to check for a specific metaheuristic or result, despite all of them still being processed, you can move the other files into a separate folder to avoid having them processed.
 * **Output:** Generates `evaluation_reports/all_results_summary.csv` and visual overlays (Confusion Matrices and Bar plots).
 
 
