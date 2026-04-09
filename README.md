@@ -23,6 +23,7 @@ Project_NULL/
 │       ├── vcs.py              # Virus Colony Search
 │       └── loa_vcs.py          # Hybrid LOA-VCS
 │
+├── COMP2024-CW-GroupXXX.docx   # Conference Paper & Report #TODO: ADD GRP NO#.
 ├── requirements.txt            # Used for virtual environments & missing modules
 ├── MachineLearningCSV.zip      # Dataset
 └── README.md                   # Project overview (this file)
