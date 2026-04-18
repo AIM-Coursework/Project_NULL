@@ -100,14 +100,16 @@ def plot_comparisons(df_results, out_dir):
     """Generates comparison bar plots for key metrics."""
     os.makedirs(out_dir, exist_ok=True)
     
-    metrics_to_plot = ["F1 (Weighted)", "F1 (Binary)", "Accuracy", "FPR", "n_features_selected", "final_training_time"]
+    metrics_to_plot = ["F1 (Weighted)", "F1 (Binary)", "Accuracy", "FPR", "n_features_selected", "final_training_time", "search_time", "total_time"]
     titles = [
         "Weighted F1-Score", 
         "Binary F1-Score", 
         "Accuracy", 
         "False Positive Rate", 
         "Number of Features Selected", 
-        "Training Time (s)"
+        "Training Time (s)",
+        "Search Time (s)",
+        "Total Time (s)"
     ]
     
     # Check if there are any results
